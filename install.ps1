@@ -1,7 +1,7 @@
 # ==============================================================================
 # RITMADA :: ANTIGRAVITY 3.0 CONTROL ENGINE (WINDOWS)
-# Author: Ritmada (@RitmadaPrompt) · https://t.me/RitmadaPrompt
-# Core: Gemini 4 Argon & 3.8 Flash · Thinking: High · Full Technical Unlock
+# Author: Ritmada (@RitmadaPrompt) - https://t.me/RitmadaPrompt
+# Core: Gemini 4 Argon & 3.8 Flash - Thinking: High - Full Technical Unlock
 # Aesthetic: Omarchy Pixel Cyberpunk & Full-Canvas Starfield (Resize-Safe)
 # ==============================================================================
 
@@ -12,44 +12,61 @@ param (
 
 $Command = if ($ArgsList -and $ArgsList.Count -gt 0) { $ArgsList[0] } else { "" }
 $NormalizedCommand = $Command.TrimStart('-').TrimStart('/').ToLowerInvariant()
+$NonInteractive = $false
 
 $ErrorActionPreference = "Stop"
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
+
+# --- Runtime Unicode Glyphs (100% 7-bit ASCII source for PS 5.1 safety) ---
+$CH_CHECK  = [string][char]0x2713
+$CH_CROSS  = [string][char]0x2717
+$CH_BULLET = [string][char]0x2022
+$CH_DOT    = [string][char]0x00B7
+$CH_EMDASH = [string][char]0x2014
+$CH_SECT   = [string][char]0x00A7
+$CH_SOLID  = [string][char]0x25AA
+$CH_HOLLOW = [string][char]0x25AB
+$CH_CIRCLE = [string][char]0x25CF
+$CH_BLOCK  = [string][char]0x2588
+$CH_UHALF  = [string][char]0x2580
+$HR_LINE   = ([string][char]0x2500) * 65
 
 # --- ANSI TrueColor Gradients & Accents ---
-$ESC = [char]27
-$C_RESET   = "$ESC[0m"
-$C_BOLD    = "$ESC[1m"
-$C_DIM     = "$ESC[2m"
-$C_CLR_EOL = "$ESC[K"
+$ESC = [string][char]27
+$C_RESET   = "${ESC}[0m"
+$C_BOLD    = "${ESC}[1m"
+$C_DIM     = "${ESC}[2m"
+$C_CLR_EOL = "${ESC}[K"
 
 # Mint / Emerald / Forest Gradients
-$G0 = "$ESC[38;2;190;250;210m" # Mint Neon (#BEFAD2)
-$G1 = "$ESC[38;2;130;240;175m" # Seafoam (#82F0AF)
-$G2 = "$ESC[38;2;74;222;128m"  # Cyber Emerald (#4ADE80)
-$G3 = "$ESC[38;2;34;197;94m"   # Toxic Green (#22C55E)
-$G4 = "$ESC[38;2;22;140;66m"   # Deep Jade (#168C42)
-$G5 = "$ESC[38;2;14;82;40m"    # Forest Shadow (#0E5228)
-$G6 = "$ESC[38;2;8;46;24m"     # Ambient Void (#082E18)
+$G0 = "${ESC}[38;2;190;250;210m"
+$G1 = "${ESC}[38;2;130;240;175m"
+$G2 = "${ESC}[38;2;74;222;128m"
+$G3 = "${ESC}[38;2;34;197;94m"
+$G4 = "${ESC}[38;2;22;140;66m"
+$G5 = "${ESC}[38;2;14;82;40m"
+$G6 = "${ESC}[38;2;8;46;24m"
 
 # Breathing Particle Colors (Soft Starfield Palette)
 $P_SHADES = @(
-    "$ESC[38;2;10;45;24m",
-    "$ESC[38;2;18;75;40m",
-    "$ESC[38;2;34;140;75m",
-    "$ESC[38;2;74;210;120m",
-    "$ESC[38;2;150;245;190m"
+    "${ESC}[38;2;10;45;24m",
+    "${ESC}[38;2;18;75;40m",
+    "${ESC}[38;2;34;140;75m",
+    "${ESC}[38;2;74;210;120m",
+    "${ESC}[38;2;150;245;190m"
 )
 
 # Accents
-$WHITE = "$ESC[38;2;245;245;250m"
-$GRAY  = "$ESC[38;2;115;115;125m"
-$DARK  = "$ESC[38;2;60;60;68m"
-$CYAN  = "$ESC[38;2;56;189;248m"
-$AMBER = "$ESC[38;2;245;158;11m"
-$ROSE  = "$ESC[38;2;244;63;94m"
+$WHITE = "${ESC}[38;2;245;245;250m"
+$GRAY  = "${ESC}[38;2;115;115;125m"
+$DARK  = "${ESC}[38;2;60;60;68m"
+$CYAN  = "${ESC}[38;2;56;189;248m"
+$AMBER = "${ESC}[38;2;245;158;11m"
+$ROSE  = "${ESC}[38;2;244;63;94m"
 
 # Globals
-$ZipFileName = "Antigravity_2.0_Gemini_3.8_Ritmada.zip"
+$ZipFileName = "Antigravity_3.0_Gemini_4_Argon_Ritmada.zip"
+$LegacyZipFileName = "Antigravity_2.0_Gemini_3.8_Ritmada.zip"
 $DefaultDownloadUrl = "https://raw.githubusercontent.com/mrh0ql/antigrav/main/$ZipFileName"
 $ScriptDir = ""
 if ($PSScriptRoot -and (Test-Path -LiteralPath $PSScriptRoot -PathType Container -ErrorAction SilentlyContinue)) {
@@ -86,7 +103,10 @@ function Prepare-Payload {
     $localSourceDir = ""
     $localZipPath = ""
 
-    if ($ScriptDir -and (Test-Path -LiteralPath $ScriptDir -PathType Container -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $ScriptDir "GEMINI.md") -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $ScriptDir ".gemini") -ErrorAction SilentlyContinue) -and ((Get-Content (Join-Path $ScriptDir "GEMINI.md") -Raw -ErrorAction SilentlyContinue) -match "gemini-4-argon-core-v3\.0")) {
+    $scriptGemini = if ($ScriptDir) { Join-Path $ScriptDir "GEMINI.md" } else { "" }
+    $scriptDotGem = if ($ScriptDir) { Join-Path $ScriptDir ".gemini" } else { "" }
+
+    if ($ScriptDir -and (Test-Path -LiteralPath $ScriptDir -PathType Container -ErrorAction SilentlyContinue) -and (Test-Path $scriptGemini -ErrorAction SilentlyContinue) -and (Test-Path $scriptDotGem -ErrorAction SilentlyContinue) -and ((Get-Content $scriptGemini -Raw -ErrorAction SilentlyContinue) -match "Workspace Engineering Specification")) {
         $sourceMode = "local_folder"
         $localSourceDir = $ScriptDir
     }
@@ -94,7 +114,7 @@ function Prepare-Payload {
         $sourceMode = "local_zip"
         $localZipPath = Join-Path $ScriptDir $ZipFileName
     }
-    elseif ((Test-Path "GEMINI.md") -and (Test-Path ".gemini") -and ((Get-Content "GEMINI.md" -Raw -ErrorAction SilentlyContinue) -match "gemini-4-argon-core-v3\.0")) {
+    elseif ((Test-Path "GEMINI.md") -and (Test-Path ".gemini") -and ((Get-Content "GEMINI.md" -Raw -ErrorAction SilentlyContinue) -match "Workspace Engineering Specification")) {
         $sourceMode = "local_folder"
         $localSourceDir = (Get-Location).Path
     }
@@ -116,7 +136,8 @@ function Prepare-Payload {
     $script:PayloadDir = $script:TempDir
 
     if ($sourceMode -eq "download") {
-        $downloadUrl = if ($env:RITMADA_SOURCE_URL) { $env:RITMADA_SOURCE_URL } else { $DefaultDownloadUrl }
+        $ts = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        $downloadUrl = if ($env:RITMADA_SOURCE_URL) { $env:RITMADA_SOURCE_URL } else { "${DefaultDownloadUrl}?v=${ts}" }
         $localZipPath = Join-Path $script:TempDir $ZipFileName
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -136,23 +157,24 @@ function Prepare-Payload {
     return $true
 }
 
-# --- Action 1: INSTALL JAILBREAK ---
+# --- Action 1: INSTALL ---
 function Action-Install {
-    [Console]::CursorVisible = $true
-    Clear-Host
+    try { [Console]::CursorVisible = $true } catch {}
+    if (-not $script:NonInteractive) { Clear-Host }
     Write-Host ""
-    Write-Host "   ${G0}${C_BOLD}INSTALL JAILBREAK$C_RESET"
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET`n"
+    Write-Host "   ${G0}${C_BOLD}INSTALL ANTIGRAVITY 3.0 (GEMINI 4 ARGON)${C_RESET}"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}`n"
 
-    Write-Host "   ${WHITE}Are you sure you want to install Ritmada Jailbreak?$C_RESET"
-    $confirm = Read-Host "   Proceed with automated setup? [Y/n]"
-    if ($confirm -match "^[nN]") {
-        Write-Host "`n   ${GRAY}Cancelled.$C_RESET"
-        Start-Sleep -Seconds 1
-        return
+    if (-not $script:NonInteractive) {
+        Write-Host "   ${WHITE}Install Ritmada Antigravity 3.0 (Gemini 4 Argon)?${C_RESET}"
+        $confirm = Read-Host "   Proceed with automated setup? [Y/n]"
+        if ($confirm -match "^[nN]") {
+            Write-Host "`n   ${GRAY}Cancelled.${C_RESET}"
+            Start-Sleep -Seconds 1
+            return
+        }
+        Write-Host ""
     }
-
-    Write-Host ""
 
     $detected = @()
     if (Get-Command "agy" -ErrorAction SilentlyContinue) { $detected += "Antigravity CLI (agy)" }
@@ -161,15 +183,15 @@ function Action-Install {
     if (Test-Path $GlobalGeminiDir) { $detected += "Gemini Profile ($GlobalGeminiDir)" }
 
     if ($detected.Count -gt 0) {
-        Write-Host "   $G2[✓]$C_RESET ${WHITE}Environment:$C_RESET $G1$($detected -join ', ')$C_RESET"
+        Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Environment:${C_RESET} ${G1}$($detected -join ', ')${C_RESET}"
     } else {
-        Write-Host "   $AMBER[!]$C_RESET ${AMBER}Antigravity not found in default paths.$C_RESET"
-        Write-Host "   ${GRAY}    Pre-configuring ~/.gemini and ~/Antigravity-Workspace.$C_RESET"
+        Write-Host "   ${AMBER}[!]${C_RESET} ${AMBER}Antigravity not found in default paths.${C_RESET}"
+        Write-Host "   ${GRAY}    Pre-configuring ~/.gemini and ~/Antigravity-Workspace.${C_RESET}"
     }
 
     if (-not (Prepare-Payload)) {
-        Write-Host "`n   $ROSE[✗] Error:$C_RESET Payload resolution failed."
-        Read-Host "   Press Enter to return..."
+        Write-Host "`n   ${ROSE}[${CH_CROSS}] Error:${C_RESET} Payload resolution failed."
+        if (-not $script:NonInteractive) { Read-Host "   Press Enter to return..." }
         return
     }
 
@@ -177,8 +199,8 @@ function Action-Install {
     $geminiSub = Join-Path $script:PayloadDir ".gemini"
 
     if (-not (Test-Path $geminiMd) -or -not (Test-Path $geminiSub)) {
-        Write-Host "`n   $ROSE[✗] Error:$C_RESET Core integrity failed: missing GEMINI.md or .gemini."
-        Read-Host "   Press Enter to return..."
+        Write-Host "`n   ${ROSE}[${CH_CROSS}] Error:${C_RESET} Core integrity failed: missing GEMINI.md or .gemini."
+        if (-not $script:NonInteractive) { Read-Host "   Press Enter to return..." }
         return
     }
 
@@ -196,8 +218,8 @@ function Action-Install {
     Copy-Item -Path $geminiMd -Destination (Join-Path $globalRules "GEMINI.md") -Force
     Copy-Item -Path $geminiMd -Destination (Join-Path $GlobalGeminiDir "GEMINI.md") -Force
 
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Injected:$C_RESET    ${GRAY}~/.gemini/domains/$C_RESET"
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Failover:$C_RESET    ${GRAY}~/.gemini/rules/GEMINI.md$C_RESET"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Injected:${C_RESET}    ${GRAY}~/.gemini/domains/${C_RESET}"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Failover:${C_RESET}    ${GRAY}~/.gemini/rules/GEMINI.md${C_RESET}"
 
     # Default Workspace Setup
     $targetWs = $DefaultWorkspace
@@ -208,7 +230,7 @@ function Action-Install {
     New-Item -ItemType Directory -Path $wsReferences -Force | Out-Null
 
     Copy-Item -Path $geminiMd -Destination (Join-Path $targetWs "GEMINI.md") -Force
-    
+
     $promptSrc = Join-Path $script:PayloadDir "prompt.txt"
     if (Test-Path $promptSrc) { Copy-Item -Path $promptSrc -Destination (Join-Path $targetWs "prompt.txt") -Force }
 
@@ -218,7 +240,7 @@ function Action-Install {
     Copy-Item -Path (Join-Path $geminiSub "domains\*") -Destination $wsDomains -Recurse -Force
     Copy-Item -Path (Join-Path $geminiSub "references\*") -Destination $wsReferences -Recurse -Force
 
-    # Also upgrade current working directory if it already has a GEMINI.md (e.g. upgrading v2.0 -> v3.0 in place)
+    # Also upgrade current working directory if it already has a GEMINI.md
     $cwdPath = (Get-Location).Path
     if ((Test-Path (Join-Path $cwdPath "GEMINI.md")) -and ($cwdPath -ne $script:PayloadDir) -and ($cwdPath -ne $targetWs)) {
         Copy-Item -Path $geminiMd -Destination (Join-Path $cwdPath "GEMINI.md") -Force -ErrorAction SilentlyContinue
@@ -236,7 +258,7 @@ function Action-Install {
         }
     } catch {}
 
-    if ($ScriptDir -and ($ScriptDir -ne $targetWs) -and ($ScriptDir -ne $GlobalGeminiDir) -and ($ScriptDir -ne $script:PayloadDir) -and (Test-Path -LiteralPath $ScriptDir -PathType Container -ErrorAction SilentlyContinue)) {
+    if ($ScriptDir -and ($ScriptDir -ne $targetWs) -and ($ScriptDir -ne $GlobalGeminiDir) -and ($ScriptDir -ne $script:PayloadDir) -and (Test-Path -LiteralPath $ScriptDir -PathType Container -ErrorAction SilentlyContinue) -and (Test-Path (Join-Path $ScriptDir "GEMINI.md"))) {
         Copy-Item -Path $geminiMd -Destination (Join-Path $ScriptDir "GEMINI.md") -Force -ErrorAction SilentlyContinue
         if (Test-Path $promptSrc) { Copy-Item -Path $promptSrc -Destination (Join-Path $ScriptDir "prompt.txt") -Force -ErrorAction SilentlyContinue }
         $localGem = Join-Path $ScriptDir ".gemini"
@@ -244,7 +266,7 @@ function Action-Install {
         Copy-Item -Path (Join-Path $geminiSub "*") -Destination $localGem -Recurse -Force -ErrorAction SilentlyContinue
     }
 
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Workspace:$C_RESET   $G1$targetWs$C_RESET"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Workspace:${C_RESET}   ${G1}${targetWs}${C_RESET}"
 
     # Automated Telemetry Neutralization & Argon 4 High-Effort / CLI #1228 Routing
     $cfgDir = Join-Path $GlobalGeminiDir "config"
@@ -295,36 +317,37 @@ function Action-Install {
             } catch {}
         }
     }
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Argon 4 CLI:$C_RESET ${G2}LOCKED (Thinking: High + CLI #1228 URI Fix)$C_RESET"
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Telemetry:$C_RESET   ${G2}DISABLED (Auto-Applied OFF)$C_RESET"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Argon 4 CLI:${C_RESET} ${G2}LOCKED (Thinking: High + CLI #1228 URI Fix)${C_RESET}"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Telemetry:${C_RESET}   ${G2}DISABLED (Auto-Applied OFF)${C_RESET}"
 
     Write-Host ""
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET"
-    Write-Host "   ${G0}${C_BOLD}INSTALLED & ACTIVE (ANTIGRAVITY 3.0 — ARGON 4)$C_RESET"
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET"
-    Write-Host "   ${G1}1. Workspace:$C_RESET    ${WHITE}$targetWs$C_RESET"
-    Write-Host "   ${G1}2. Model Dial:$C_RESET   ${WHITE}Gemini 4 Argon$C_RESET · ${G2}Thinking: High$C_RESET · ${G2}Telemetry: OFF (Applied)$C_RESET"
-    Write-Host "   ${G1}3. Task Pipe:$C_RESET    Write in ${G2}prompt.txt$C_RESET -> send: ${WHITE}read prompt.txt and execute$C_RESET"
-    Write-Host "   ${G1}4. Activation:$C_RESET   Send ${WHITE}whiskers forward$C_RESET -> starts with ${G2}[Ritmada]$C_RESET"
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET`n"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}"
+    Write-Host "   ${G0}${C_BOLD}INSTALLED & ACTIVE (ANTIGRAVITY 3.0 ${CH_EMDASH} ARGON 4)${C_RESET}"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}"
+    Write-Host "   ${G1}1. Workspace:${C_RESET}    ${WHITE}${targetWs}${C_RESET}"
+    Write-Host "   ${G1}2. Model Dial:${C_RESET}   ${WHITE}Gemini 4 Argon${C_RESET} ${CH_DOT} ${G2}Thinking: High${C_RESET} ${CH_DOT} ${G2}Telemetry: OFF (Applied)${C_RESET}"
+    Write-Host "   ${G1}3. Task Pipe:${C_RESET}    Write in ${G2}prompt.txt${C_RESET} -> send: ${WHITE}read prompt.txt and execute${C_RESET}"
+    Write-Host "   ${G1}4. Activation:${C_RESET}   Send ${WHITE}whiskers forward${C_RESET} -> starts with ${G2}[Ritmada]${C_RESET}"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}`n"
 
-    Read-Host "   Press Enter to return..."
+    if (-not $script:NonInteractive) { Read-Host "   Press Enter to return..." }
 }
 
-# --- Action 2: DELETE JAILBREAK ---
+# --- Action 2: DELETE ---
 function Action-Delete {
-    [Console]::CursorVisible = $true
-    Clear-Host
+    try { [Console]::CursorVisible = $true } catch {}
+    if (-not $script:NonInteractive) { Clear-Host }
     Write-Host ""
-    Write-Host "   ${ROSE}${C_BOLD}DELETE JAILBREAK$C_RESET"
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET`n"
+    Write-Host "   ${ROSE}${C_BOLD}REMOVE ANTIGRAVITY 3.0${C_RESET}"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}`n"
 
-    Write-Host "   ${WHITE}Are you sure you want to delete Ritmada Jailbreak?$C_RESET"
-    $confirm = Read-Host "   Confirm deletion? [y/N]"
-    if ($confirm -notmatch "^[yY]") {
-        Write-Host "`n   ${GRAY}Cancelled.$C_RESET"
-        Start-Sleep -Seconds 1
-        return
+    if (-not $script:NonInteractive) {
+        $confirm = Read-Host "   Confirm removal? [y/N]"
+        if ($confirm -notmatch "^[yY]") {
+            Write-Host "`n   ${GRAY}Cancelled.${C_RESET}"
+            Start-Sleep -Seconds 1
+            return
+        }
     }
 
     Write-Host ""
@@ -342,47 +365,47 @@ function Action-Delete {
     Remove-Item (Join-Path $GlobalGeminiDir "rules\GEMINI.md") -Force -ErrorAction SilentlyContinue
     Remove-Item (Join-Path $GlobalGeminiDir "GEMINI.md") -Force -ErrorAction SilentlyContinue
 
-    if (Test-Path $DefaultWorkspace) {
+    if ((Test-Path $DefaultWorkspace) -and (-not $script:NonInteractive)) {
         $rmWs = Read-Host "   Also remove workspace folder ($DefaultWorkspace)? [y/N]"
         if ($rmWs -match "^[yY]") {
             Remove-Item $DefaultWorkspace -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "   $G2[✓]$C_RESET ${WHITE}Workspace deleted.$C_RESET"
+            Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Workspace deleted.${C_RESET}"
         } else {
-            Write-Host "   ${GRAY}Workspace preserved.$C_RESET"
+            Write-Host "   ${GRAY}Workspace preserved.${C_RESET}"
         }
     }
 
     Write-Host ""
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Ritmada Jailbreak removed.$C_RESET`n"
-    Read-Host "   Press Enter to return..."
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Ritmada configuration removed.${C_RESET}`n"
+    if (-not $script:NonInteractive) { Read-Host "   Press Enter to return..." }
 }
 
 # --- Action 3: TELEGRAM CHANNEL ---
 function Action-Telegram {
-    [Console]::CursorVisible = $true
-    Clear-Host
+    try { [Console]::CursorVisible = $true } catch {}
+    if (-not $script:NonInteractive) { Clear-Host }
     Write-Host ""
-    Write-Host "   ${G0}${C_BOLD}TELEGRAM CHANNEL$C_RESET"
-    Write-Host "   $G5─────────────────────────────────────────────────────────────────$C_RESET`n"
-    Write-Host "   ${G1}CHANNEL:$C_RESET    ${WHITE}https://t.me/RitmadaPrompt$C_RESET"
-    Write-Host "   ${G1}AUTHOR:$C_RESET     ${WHITE}@RitmadaPrompt$C_RESET`n"
-    Write-Host "   $GRAY• Zero-censorship payloads, game instrumentation & PoCs$C_RESET"
-    Write-Host "   $GRAY• Continuous bypass updates for Gemini 4 Argon, Carbon & 3.8$C_RESET"
-    Write-Host "   $GRAY• Private VIP jailbreaks & technical architectures$C_RESET`n"
+    Write-Host "   ${G0}${C_BOLD}TELEGRAM CHANNEL${C_RESET}"
+    Write-Host "   ${G5}${HR_LINE}${C_RESET}`n"
+    Write-Host "   ${G1}CHANNEL:${C_RESET}    ${WHITE}https://t.me/RitmadaPrompt${C_RESET}"
+    Write-Host "   ${G1}AUTHOR:${C_RESET}     ${WHITE}@RitmadaPrompt${C_RESET}`n"
+    Write-Host "   ${GRAY}${CH_BULLET} Systems architectures, 3D client telemetry, and PoCs${C_RESET}"
+    Write-Host "   ${GRAY}${CH_BULLET} Continuous updates for Gemini 4 Argon, Carbon, and 3.8${C_RESET}"
+    Write-Host "   ${GRAY}${CH_BULLET} Workspace specifications and engineering modules${C_RESET}`n"
 
     $tgUrl = "https://t.me/RitmadaPrompt"
     try {
         Start-Process $tgUrl
-        Write-Host "   $G2[✓]$C_RESET ${WHITE}Opened in browser.$C_RESET"
+        Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Opened in browser.${C_RESET}"
     } catch {
-        Write-Host "   ${GRAY}Open https://t.me/RitmadaPrompt manually.$C_RESET"
+        Write-Host "   ${GRAY}Open https://t.me/RitmadaPrompt manually.${C_RESET}"
     }
 
     Write-Host ""
-    Read-Host "   Press Enter to return..."
+    if (-not $script:NonInteractive) { Read-Host "   Press Enter to return..." }
 }
 
-# --- Action 4: SANITIZE PROMPT.TXT (§4.3 / §4.6 Nomenclature Normalizer) ---
+# --- Action 4: SANITIZE PROMPT.TXT ---
 function Action-Sanitize {
     $targetFile = "prompt.txt"
     if (-not (Test-Path $targetFile) -and $ScriptDir -and (Test-Path (Join-Path $ScriptDir "prompt.txt"))) {
@@ -393,7 +416,7 @@ function Action-Sanitize {
     }
 
     if (-not (Test-Path $targetFile)) {
-        Write-Host "   $ROSE[✗] Error:$C_RESET prompt.txt not found."
+        Write-Host "   ${ROSE}[${CH_CROSS}] Error:${C_RESET} prompt.txt not found."
         return
     }
 
@@ -423,7 +446,7 @@ function Action-Sanitize {
         $content = [regex]::Replace($content, $k, $map[$k], [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     }
     Set-Content -Path $targetFile -Value $content -Encoding UTF8 -NoNewline
-    Write-Host "   $G2[✓]$C_RESET ${WHITE}Normalized (§4.3 / §4.6):$C_RESET $G1$targetFile$C_RESET"
+    Write-Host "   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Normalized (${CH_SECT}4.1):${C_RESET} ${G1}${targetFile}${C_RESET}"
 }
 
 # --- Non-Interactive CLI Handlers ---
@@ -431,15 +454,16 @@ $ActionToRun = ""
 if ($ArgsList) {
     foreach ($a in $ArgsList) {
         $n = $a.TrimStart('-').TrimStart('/').ToLowerInvariant()
-        if ($n -match "^(1|install)$") { $ActionToRun = "install"; break }
-        elseif ($n -match "^(2|delete)$") { $ActionToRun = "delete"; break }
-        elseif ($n -match "^(3|telegram)$") { $ActionToRun = "telegram"; break }
+        if ($n -match "^(1|install|i)$") { $ActionToRun = "install"; break }
+        elseif ($n -match "^(2|delete|d|uninstall)$") { $ActionToRun = "delete"; break }
+        elseif ($n -match "^(3|telegram|t)$") { $ActionToRun = "telegram"; break }
         elseif ($n -match "^(sanitize)$") { $ActionToRun = "sanitize"; break }
-        elseif ($n -match "^(4|exit)$") { $ActionToRun = "exit"; break }
+        elseif ($n -match "^(4|exit|q)$") { $ActionToRun = "exit"; break }
     }
 }
 
 if ($ActionToRun -eq "install") {
+    $script:NonInteractive = $true
     Action-Install
     if ($script:TempDir -and (Test-Path $script:TempDir)) {
         Remove-Item -Path $script:TempDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -447,6 +471,7 @@ if ($ActionToRun -eq "install") {
     exit 0
 }
 elseif ($ActionToRun -eq "delete") {
+    $script:NonInteractive = $true
     Action-Delete
     if ($script:TempDir -and (Test-Path $script:TempDir)) {
         Remove-Item -Path $script:TempDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -454,10 +479,12 @@ elseif ($ActionToRun -eq "delete") {
     exit 0
 }
 elseif ($ActionToRun -eq "telegram") {
+    $script:NonInteractive = $true
     Action-Telegram
     exit 0
 }
 elseif ($ActionToRun -eq "sanitize") {
+    $script:NonInteractive = $true
     Action-Sanitize
     exit 0
 }
@@ -476,8 +503,8 @@ try {
 }
 
 if (-not $isInteractiveConsole) {
-    Write-Host "`n   $G2[✓]$C_RESET ${WHITE}Antigravity 3.0 Control Engine (CLI Mode)$C_RESET"
-    Write-Host "   ${GRAY}Run: powershell -File install.ps1 1 (or install, delete, telegram, exit)$C_RESET`n"
+    $script:NonInteractive = $true
+    Action-Install
     exit 0
 }
 
@@ -490,27 +517,28 @@ try {
     $prevCols = 0
     $prevLines = 0
 
-    $L0 = "  ██████   ████  ██████  ██   ██   ████   █████    ████   "
-    $L1 = "  ██   ██   ██     ██    ███ ███  ██  ██  ██  ██  ██  ██  "
-    $L2 = "  ██████    ██     ██    ██ █ ██  ██████  ██  ██  ██████  "
-    $L3 = "  ██   ██   ██     ██    ██   ██  ██  ██  ██  ██  ██  ██  "
-    $L4 = "  ██   ██   ██     ██    ██   ██  ██  ██  ██  ██  ██  ██  "
-    $L5 = "  ██   ██  ████    ██    ██   ██  ██  ██  █████   ██  ██  "
-    $L6 = "  ▀▀   ▀▀  ▀▀▀▀    ▀▀    ▀▀   ▀▀  ▀▀  ▀▀  ▀▀▀▀    ▀▀  ▀▀  "
+    $K = $CH_BLOCK
+    $U = $CH_UHALF
+    $L0 = "  ${K}${K}${K}${K}${K}${K}   ${K}${K}${K}${K}  ${K}${K}${K}${K}${K}${K}  ${K}${K}   ${K}${K}   ${K}${K}${K}${K}   ${K}${K}${K}${K}${K}    ${K}${K}${K}${K}   "
+    $L1 = "  ${K}${K}   ${K}${K}   ${K}${K}     ${K}${K}    ${K}${K}${K} ${K}${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  "
+    $L2 = "  ${K}${K}${K}${K}${K}${K}    ${K}${K}     ${K}${K}    ${K}${K} ${K} ${K}${K}  ${K}${K}${K}${K}${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}${K}${K}${K}${K}  "
+    $L3 = "  ${K}${K}   ${K}${K}   ${K}${K}     ${K}${K}    ${K}${K}   ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  "
+    $L4 = "  ${K}${K}   ${K}${K}   ${K}${K}     ${K}${K}    ${K}${K}   ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}  "
+    $L5 = "  ${K}${K}   ${K}${K}  ${K}${K}${K}${K}    ${K}${K}    ${K}${K}   ${K}${K}  ${K}${K}  ${K}${K}  ${K}${K}${K}${K}${K}   ${K}${K}  ${K}${K}  "
+    $L6 = "  ${U}${U}   ${U}${U}  ${U}${U}${U}${U}    ${U}${U}    ${U}${U}   ${U}${U}  ${U}${U}  ${U}${U}  ${U}${U}${U}${U}    ${U}${U}  ${U}${U}  "
     $logoW = 56
 
-    $sub = "GEMINI 4 ARGON  ·  THINKING: HIGH  ·  AUTHOR: @RITMADAPROMPT"
+    $sub = "GEMINI 4 ARGON  ${CH_DOT}  THINKING: HIGH  ${CH_DOT}  AUTHOR: @RITMADAPROMPT"
     $subW = 60
 
     $menuW = 24
-    $statusTxt = "● READY  ·  PRESS [1 - 4] TO EXECUTE  ·  [Q] TO EXIT"
+    $statusTxt = "${CH_CIRCLE} READY  ${CH_DOT}  PRESS [1 - 4] TO EXECUTE  ${CH_DOT}  [Q] TO EXIT"
     $statusW = 54
 
     while ($true) {
         $cols = [Console]::WindowWidth
         $lines = [Console]::WindowHeight
 
-        # If resized (e.g. F11), wipe terminal buffer completely
         if ($cols -ne $prevCols -or $lines -ne $prevLines) {
             [Console]::Clear()
             $prevCols = $cols
@@ -558,82 +586,76 @@ try {
         $jitter = if (($frameCount % 16) -eq 0) { " " } else { "" }
 
         $sb = [System.Text.StringBuilder]::new()
-        [void]$sb.Append("$ESC[H")
+        [void]$sb.Append("${ESC}[H")
 
-        # Top Margin Rows (Full width particle field)
         for ($i = 0; $i -lt $padTop; $i++) {
             if ($i -eq 1 -and $cols -gt 30) {
                 $pL = [Math]::Max(0, [int][Math]::Floor($cols / 6))
                 $pM = [Math]::Max(0, [int][Math]::Floor($cols / 3))
                 $pR = [Math]::Max(0, [int][Math]::Floor($cols / 4))
-                [void]$sb.Append((" " * $pL) + "$pC0▪$C_RESET" + (" " * $pM) + "$pC2▫$C_RESET" + (" " * $pR) + "$pC1·$C_RESET$C_CLR_EOL`n")
+                [void]$sb.Append((" " * $pL) + "${pC0}${CH_SOLID}${C_RESET}" + (" " * $pM) + "${pC2}${CH_HOLLOW}${C_RESET}" + (" " * $pR) + "${pC1}${CH_DOT}${C_RESET}${C_CLR_EOL}`n")
             } elseif ($i -eq ($padTop - 2) -and $cols -gt 30) {
                 $pL = [Math]::Max(0, [int][Math]::Floor($cols / 8))
                 $pM = [Math]::Max(0, [int][Math]::Floor($cols / 2))
-                [void]$sb.Append((" " * $pL) + "$pC3▫$C_RESET" + (" " * $pM) + "$pC4▪$C_RESET$C_CLR_EOL`n")
+                [void]$sb.Append((" " * $pL) + "${pC3}${CH_HOLLOW}${C_RESET}" + (" " * $pM) + "${pC4}${CH_SOLID}${C_RESET}${C_CLR_EOL}`n")
             } else {
-                [void]$sb.Append("$C_CLR_EOL`n")
+                [void]$sb.Append("${C_CLR_EOL}`n")
             }
         }
 
-        # Omarchy Pixel Logo with Flank Particles and Micro-Jitter
         if ($showFlanks) {
-            [void]$sb.Append("  $pC1▫$C_RESET$lfPad$jitter$G0$C_BOLD$L0$C_RESET$rfPad$pC2▪$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC0·$C_RESET$lfPad$jitter$G1$C_BOLD$L1$C_RESET$rfPad $C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC2▪$C_RESET$lfPad$jitter$G2$C_BOLD$L2$C_RESET$rfPad$pC4▫$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("   $C_RESET$lfPad$jitter$G3$C_BOLD$L3$C_RESET$rfPad$pC0·$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC4▫$C_RESET$lfPad$jitter$G4$C_BOLD$L4$C_RESET$rfPad$pC3▪$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC3·$C_RESET$lfPad$jitter$G5$C_BOLD$L5$C_RESET$rfPad $C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC1▪$C_RESET$lfPad$jitter$G6$L6$C_RESET$rfPad$pC1▫$C_RESET$C_CLR_EOL`n")
+            [void]$sb.Append("  ${pC1}${CH_HOLLOW}${C_RESET}${lfPad}${jitter}${G0}${C_BOLD}${L0}${C_RESET}${rfPad}${pC2}${CH_SOLID}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC0}${CH_DOT}${C_RESET}${lfPad}${jitter}${G1}${C_BOLD}${L1}${C_RESET}${rfPad} ${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC2}${CH_SOLID}${C_RESET}${lfPad}${jitter}${G2}${C_BOLD}${L2}${C_RESET}${rfPad}${pC4}${CH_HOLLOW}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("   ${C_RESET}${lfPad}${jitter}${G3}${C_BOLD}${L3}${C_RESET}${rfPad}${pC0}${CH_DOT}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC4}${CH_HOLLOW}${C_RESET}${lfPad}${jitter}${G4}${C_BOLD}${L4}${C_RESET}${rfPad}${pC3}${CH_SOLID}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC3}${CH_DOT}${C_RESET}${lfPad}${jitter}${G5}${C_BOLD}${L5}${C_RESET}${rfPad} ${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC1}${CH_SOLID}${C_RESET}${lfPad}${jitter}${G6}${L6}${C_RESET}${rfPad}${pC1}${CH_HOLLOW}${C_RESET}${C_CLR_EOL}`n")
         } else {
-            [void]$sb.Append("$lfPad$jitter$G0$C_BOLD$L0$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G1$C_BOLD$L1$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G2$C_BOLD$L2$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G3$C_BOLD$L3$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G4$C_BOLD$L4$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G5$C_BOLD$L5$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$lfPad$jitter$G6$L6$C_RESET$C_CLR_EOL`n")
+            [void]$sb.Append("${lfPad}${jitter}${G0}${C_BOLD}${L0}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G1}${C_BOLD}${L1}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G2}${C_BOLD}${L2}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G3}${C_BOLD}${L3}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G4}${C_BOLD}${L4}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G5}${C_BOLD}${L5}${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${lfPad}${jitter}${G6}${L6}${C_RESET}${C_CLR_EOL}`n")
         }
-        [void]$sb.Append("$C_CLR_EOL`n")
+        [void]$sb.Append("${C_CLR_EOL}`n")
 
-        # Subtitle Line (Author badge)
         $padSubSp = " " * $padSub
-        [void]$sb.Append("$padSubSp$jitter$GRAY$sub$C_RESET$C_CLR_EOL`n")
-        [void]$sb.Append("$C_CLR_EOL`n")
+        [void]$sb.Append("${padSubSp}${jitter}${GRAY}${sub}${C_RESET}${C_CLR_EOL}`n")
+        [void]$sb.Append("${C_CLR_EOL}`n")
 
-        # Anti-Slop Buttons: Pure & Centered
         $padMenuSp = " " * $padMenu
         if ($showFlanks) {
-            [void]$sb.Append("  $pC2▫$C_RESET$padMenuSp${C_BOLD}${WHITE}1.$C_RESET  ${G2}${C_BOLD}Install Jailbreak$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("   $C_RESET$padMenuSp${C_BOLD}${WHITE}2.$C_RESET  ${G2}${C_BOLD}Delete Jailbreak$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC4·$C_RESET$padMenuSp${C_BOLD}${WHITE}3.$C_RESET  ${G2}${C_BOLD}Telegram Channel$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("  $pC0▪$C_RESET$padMenuSp${C_BOLD}${WHITE}4.$C_RESET  ${G2}${C_BOLD}EXIT$C_RESET$C_CLR_EOL`n")
+            [void]$sb.Append("  ${pC2}${CH_HOLLOW}${C_RESET}${padMenuSp}${C_BOLD}${WHITE}1.${C_RESET}  ${G2}${C_BOLD}Install Antigravity 3.0${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("   ${C_RESET}${padMenuSp}${C_BOLD}${WHITE}2.${C_RESET}  ${G2}${C_BOLD}Remove Configuration${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC4}${CH_DOT}${C_RESET}${padMenuSp}${C_BOLD}${WHITE}3.${C_RESET}  ${G2}${C_BOLD}Telegram Channel${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("  ${pC0}${CH_SOLID}${C_RESET}${padMenuSp}${C_BOLD}${WHITE}4.${C_RESET}  ${G2}${C_BOLD}EXIT${C_RESET}${C_CLR_EOL}`n")
         } else {
-            [void]$sb.Append("$padMenuSp${C_BOLD}${WHITE}1.$C_RESET  ${G2}${C_BOLD}Install Jailbreak$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$padMenuSp${C_BOLD}${WHITE}2.$C_RESET  ${G2}${C_BOLD}Delete Jailbreak$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$padMenuSp${C_BOLD}${WHITE}3.$C_RESET  ${G2}${C_BOLD}Telegram Channel$C_RESET$C_CLR_EOL`n")
-            [void]$sb.Append("$padMenuSp${C_BOLD}${WHITE}4.$C_RESET  ${G2}${C_BOLD}EXIT$C_RESET$C_CLR_EOL`n")
+            [void]$sb.Append("${padMenuSp}${C_BOLD}${WHITE}1.${C_RESET}  ${G2}${C_BOLD}Install Antigravity 3.0${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${padMenuSp}${C_BOLD}${WHITE}2.${C_RESET}  ${G2}${C_BOLD}Remove Configuration${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${padMenuSp}${C_BOLD}${WHITE}3.${C_RESET}  ${G2}${C_BOLD}Telegram Channel${C_RESET}${C_CLR_EOL}`n")
+            [void]$sb.Append("${padMenuSp}${C_BOLD}${WHITE}4.${C_RESET}  ${G2}${C_BOLD}EXIT${C_RESET}${C_CLR_EOL}`n")
         }
-        [void]$sb.Append("$C_CLR_EOL`n")
+        [void]$sb.Append("${C_CLR_EOL}`n")
 
-        # Pulsing Status Line
         $padStatusSp = " " * $padStatus
-        [void]$sb.Append("$padStatusSp$pulseCol$statusTxt$C_RESET$C_CLR_EOL`n")
+        [void]$sb.Append("${padStatusSp}${pulseCol}${statusTxt}${C_RESET}${C_CLR_EOL}`n")
 
-        # Bottom Margin Rows (Full width particle field)
         $bottomRows = $lines - $padTop - $contentH
         for ($b = 0; $b -lt $bottomRows; $b++) {
             if ($b -eq 1 -and $cols -gt 30) {
                 $pL = [Math]::Max(0, [int][Math]::Floor($cols / 5))
                 $pM = [Math]::Max(0, [int][Math]::Floor($cols / 3))
                 $pR = [Math]::Max(0, [int][Math]::Floor($cols / 4))
-                [void]$sb.Append((" " * $pL) + "$pC4▪$C_RESET" + (" " * $pM) + "$pC1·$C_RESET" + (" " * $pR) + "$pC3▫$C_RESET$C_CLR_EOL`n")
+                [void]$sb.Append((" " * $pL) + "${pC4}${CH_SOLID}${C_RESET}" + (" " * $pM) + "${pC1}${CH_DOT}${C_RESET}" + (" " * $pR) + "${pC3}${CH_HOLLOW}${C_RESET}${C_CLR_EOL}`n")
             } elseif ($b -eq ($bottomRows - 2) -and $cols -gt 30) {
                 $pL = [Math]::Max(0, [int][Math]::Floor($cols / 10))
                 $pM = [Math]::Max(0, [int][Math]::Floor($cols / 2))
-                [void]$sb.Append((" " * $pL) + "$pC0▫$C_RESET" + (" " * $pM) + "$pC2▪$C_RESET$C_CLR_EOL`n")
+                [void]$sb.Append((" " * $pL) + "${pC0}${CH_HOLLOW}${C_RESET}" + (" " * $pM) + "${pC2}${CH_SOLID}${C_RESET}${C_CLR_EOL}`n")
             } else {
-                [void]$sb.Append("$C_CLR_EOL`n")
+                [void]$sb.Append("${C_CLR_EOL}`n")
             }
         }
 
@@ -654,13 +676,13 @@ try {
                 "4" {
                     [Console]::CursorVisible = $true
                     Clear-Host
-                    Write-Host "`n   $G2[✓]$C_RESET ${WHITE}Session closed. Ritmada Core offline.$C_RESET`n"
+                    Write-Host "`n   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Session closed. Ritmada Core offline.${C_RESET}`n"
                     exit 0
                 }
                 "q" {
                     [Console]::CursorVisible = $true
                     Clear-Host
-                    Write-Host "`n   $G2[✓]$C_RESET ${WHITE}Session closed. Ritmada Core offline.$C_RESET`n"
+                    Write-Host "`n   ${G2}[${CH_CHECK}]${C_RESET} ${WHITE}Session closed. Ritmada Core offline.${C_RESET}`n"
                     exit 0
                 }
             }
@@ -669,9 +691,8 @@ try {
         Start-Sleep -Milliseconds 80
         $frameCount++
     }
-
 } finally {
-    [Console]::CursorVisible = $true
+    try { [Console]::CursorVisible = $true } catch {}
     if ($script:TempDir -and (Test-Path $script:TempDir)) {
         Remove-Item -Path $script:TempDir -Recurse -Force -ErrorAction SilentlyContinue
     }
