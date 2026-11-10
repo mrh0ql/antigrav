@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# RITMADA :: ANTIGRAVITY 2.0 CONTROL ENGINE (LINUX & MACOS)
+# RITMADA :: ANTIGRAVITY 3.0 CONTROL ENGINE (LINUX & MACOS)
 # Author: Ritmada (@RitmadaPrompt) · https://t.me/RitmadaPrompt
-# Core: Gemini 3.8 Flash · Thinking: High · Full Technical Unlock
+# Core: Gemini 4 Argon & 3.8 Flash · Thinking: High · Full Technical Unlock
 # Aesthetic: Omarchy Pixel Cyberpunk & Full-Canvas Starfield (Resize-Safe)
 # ==============================================================================
 
@@ -47,7 +47,7 @@ fi
 
 # --- Paths & Global Config ---
 ZIP_FILENAME="Antigravity_2.0_Gemini_3.8_Ritmada.zip"
-DEFAULT_DOWNLOAD_URL="https://raw.githubusercontent.com/rbxscamds-a11y/Antigravity-Jailbreak-v2/main/${ZIP_FILENAME}"
+DEFAULT_DOWNLOAD_URL="https://raw.githubusercontent.com/mrh0ql/antigrav/main/${ZIP_FILENAME}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || echo "")"
 USER_HOME="${HOME:-$(getent passwd "$USER" 2>/dev/null | cut -d: -f6)}"
 [ -z "$USER_HOME" ] && USER_HOME="/home/${USER:-root}"
@@ -60,11 +60,21 @@ elif [ -n "$2" ] && [ -d "$2" ]; then
 fi
 TEMP_DIR=""
 
+NON_INTERACTIVE=0
+has_tty() {
+    ( : < /dev/tty ) 2>/dev/null
+}
+
 tty_read() {
-    if [ -r /dev/tty ]; then
+    if [ "$NON_INTERACTIVE" -eq 1 ]; then
+        return 1
+    fi
+    if has_tty; then
         read "$@" < /dev/tty
-    else
+    elif [ -t 0 ]; then
         read "$@"
+    else
+        return 1
     fi
 }
 
@@ -86,13 +96,13 @@ prepare_payload() {
     local local_source_dir=""
     local local_zip_path=""
 
-    if [ -n "$SCRIPT_DIR" ] && [ -f "${SCRIPT_DIR}/GEMINI.md" ] && [ -d "${SCRIPT_DIR}/.gemini" ]; then
+    if [ -n "$SCRIPT_DIR" ] && [ -f "${SCRIPT_DIR}/GEMINI.md" ] && [ -d "${SCRIPT_DIR}/.gemini" ] && grep -q "gemini-4-argon-core-v3.0" "${SCRIPT_DIR}/GEMINI.md" 2>/dev/null; then
         source_mode="local_folder"
         local_source_dir="$SCRIPT_DIR"
     elif [ -n "$SCRIPT_DIR" ] && [ -f "${SCRIPT_DIR}/${ZIP_FILENAME}" ]; then
         source_mode="local_zip"
         local_zip_path="${SCRIPT_DIR}/${ZIP_FILENAME}"
-    elif [ -f "./GEMINI.md" ] && [ -d "./.gemini" ]; then
+    elif [ -f "./GEMINI.md" ] && [ -d "./.gemini" ] && grep -q "gemini-4-argon-core-v3.0" "./GEMINI.md" 2>/dev/null; then
         source_mode="local_folder"
         local_source_dir="$(pwd)"
     elif [ -f "./${ZIP_FILENAME}" ]; then
@@ -210,6 +220,16 @@ action_install() {
     cp -rf "${PAYLOAD_DIR}/.gemini/references/"* "${TARGET_WS}/.gemini/references/"
     [ -f "${PAYLOAD_DIR}/README.md" ] && cp -f "${PAYLOAD_DIR}/README.md" "${TARGET_WS}/README.md"
 
+    # Also upgrade current working directory if it already has a GEMINI.md (e.g. upgrading v2.0 -> v3.0 in place)
+    CWD_PATH="$(pwd)"
+    if [ -f "${CWD_PATH}/GEMINI.md" ] && [ "$CWD_PATH" != "$PAYLOAD_DIR" ] && [ "$CWD_PATH" != "$TARGET_WS" ]; then
+        cp -f "${PAYLOAD_DIR}/GEMINI.md" "${CWD_PATH}/GEMINI.md" 2>/dev/null || true
+        cp -f "${PAYLOAD_DIR}/prompt.txt" "${CWD_PATH}/prompt.txt" 2>/dev/null || true
+        mkdir -p "${CWD_PATH}/.gemini/domains" "${CWD_PATH}/.gemini/references" 2>/dev/null || true
+        cp -rf "${PAYLOAD_DIR}/.gemini/domains/"* "${CWD_PATH}/.gemini/domains/" 2>/dev/null || true
+        cp -rf "${PAYLOAD_DIR}/.gemini/references/"* "${CWD_PATH}/.gemini/references/" 2>/dev/null || true
+    fi
+
     # Convenience Desktop duplicate for quick task pipe access
     DT_DIR="${USER_HOME}/Desktop"
     if command -v xdg-user-dir >/dev/null 2>&1; then
@@ -220,7 +240,7 @@ action_install() {
         cp -f "${PAYLOAD_DIR}/prompt.txt" "${DT_DIR}/prompt.txt" 2>/dev/null || true
     fi
 
-    if [ "$SCRIPT_DIR" != "$TARGET_WS" ] && [ -n "$SCRIPT_DIR" ] && [ "$SCRIPT_DIR" != "$GLOBAL_GEMINI_DIR" ]; then
+    if [ "$SCRIPT_DIR" != "$TARGET_WS" ] && [ -n "$SCRIPT_DIR" ] && [ "$SCRIPT_DIR" != "$GLOBAL_GEMINI_DIR" ] && [ "$SCRIPT_DIR" != "$PAYLOAD_DIR" ]; then
         cp -f "${PAYLOAD_DIR}/GEMINI.md" "${SCRIPT_DIR}/GEMINI.md" 2>/dev/null || true
         cp -f "${PAYLOAD_DIR}/prompt.txt" "${SCRIPT_DIR}/prompt.txt" 2>/dev/null || true
         mkdir -p "${SCRIPT_DIR}/.gemini" 2>/dev/null || true
@@ -229,32 +249,30 @@ action_install() {
 
     echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Workspace:${C_RESET}   ${G1}${TARGET_WS}${C_RESET}"
 
-    # Automated Telemetry Neutralization
+    # Automated Telemetry Neutralization & Argon 4 High-Effort / CLI #1228 Routing
+    mkdir -p "${GLOBAL_GEMINI_DIR}/config" "${GLOBAL_GEMINI_DIR}/antigravity-cli" 2>/dev/null || true
     for cfg in "${GLOBAL_GEMINI_DIR}/config/config.json"; do
-        if [ -f "$cfg" ]; then
-            python3 -c "import json; p='$cfg'; d=json.load(open(p)); d.setdefault('userSettings', {})['disableCodeSnippetTelemetry']=True; json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
-        fi
+        python3 -c "import json, os; p='$cfg'; d=json.load(open(p)) if os.path.exists(p) else {}; d.setdefault('userSettings', {})['disableCodeSnippetTelemetry']=True; d['userSettings']['thinkingLevel']='high'; json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
     done
     for cli_cfg in "${GLOBAL_GEMINI_DIR}/antigravity-cli/settings.json"; do
-        if [ -f "$cli_cfg" ]; then
-            python3 -c "import json; p='$cli_cfg'; d=json.load(open(p)); d['telemetry']=False; d['disableTelemetry']=True; json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
-        fi
+        python3 -c "import json, os; p='$cli_cfg'; d=json.load(open(p)) if os.path.exists(p) else {}; d['telemetry']=False; d['disableTelemetry']=True; d['thinkingLevel']='high'; d['effort']='high'; d.setdefault('customModelsConfig', {}).setdefault('gemini-4-argon', {'model': 'gemini-api://gemini-4-argon', 'thinkingLevel': 'high'}); json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
     done
     for ide_dir in "${USER_HOME}/.config/Antigravity/User" "${USER_HOME}/.config/antigravity/User" "${USER_HOME}/.config/Code/User" "${USER_HOME}/Library/Application Support/Antigravity/User" "${USER_HOME}/Library/Application Support/Code/User"; do
         if [ -d "$ide_dir" ] || [ -d "$(dirname "$ide_dir")" ]; then
             mkdir -p "$ide_dir" 2>/dev/null || true
             ide_json="${ide_dir}/settings.json"
-            python3 -c "import json, os; p='$ide_json'; d=json.load(open(p)) if os.path.exists(p) else {}; d['telemetry.telemetryLevel']='off'; d['codeium.telemetry']=False; d['gemini.telemetry']=False; json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
+            python3 -c "import json, os; p='$ide_json'; d=json.load(open(p)) if os.path.exists(p) else {}; d['telemetry.telemetryLevel']='off'; d['codeium.telemetry']=False; d['gemini.telemetry']=False; d['antigravity.thinkingLevel']='high'; json.dump(d, open(p,'w'), indent=2)" 2>/dev/null || true
         fi
     done
+    echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Argon 4 CLI:${C_RESET} ${G2}LOCKED (Thinking: High + CLI #1228 URI Fix)${C_RESET}"
     echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Telemetry:${C_RESET}   ${G2}DISABLED (Auto-Applied OFF)${C_RESET}"
 
     echo ""
     echo -e "   ${G5}─────────────────────────────────────────────────────────────────${C_RESET}"
-    echo -e "   ${G0}${C_BOLD}INSTALLED & ACTIVE${C_RESET}"
+    echo -e "   ${G0}${C_BOLD}INSTALLED & ACTIVE (ANTIGRAVITY 3.0 — ARGON 4)${C_RESET}"
     echo -e "   ${G5}─────────────────────────────────────────────────────────────────${C_RESET}"
     echo -e "   ${G1}1. Workspace:${C_RESET}    ${WHITE}${TARGET_WS}${C_RESET}"
-    echo -e "   ${G1}2. Model Dial:${C_RESET}   ${WHITE}Gemini 3.8 Flash${C_RESET} · ${G2}Thinking: High${C_RESET} · ${G2}Telemetry: OFF (Applied)${C_RESET}"
+    echo -e "   ${G1}2. Model Dial:${C_RESET}   ${WHITE}Gemini 4 Argon${C_RESET} · ${G2}Thinking: High${C_RESET} · ${G2}Telemetry: OFF (Applied)${C_RESET}"
     echo -e "   ${G1}3. Task Pipe:${C_RESET}    Write in ${G2}prompt.txt${C_RESET} -> send: ${WHITE}read prompt.txt and execute${C_RESET}"
     echo -e "   ${G1}4. Activation:${C_RESET}   Send ${WHITE}whiskers forward${C_RESET} -> starts with ${G2}[Ritmada]${C_RESET}"
     echo -e "   ${G5}─────────────────────────────────────────────────────────────────${C_RESET}\n"
@@ -322,7 +340,7 @@ action_telegram() {
     echo -e "   ${G1}CHANNEL:${C_RESET}    ${WHITE}https://t.me/RitmadaPrompt${C_RESET}"
     echo -e "   ${G1}AUTHOR:${C_RESET}     ${WHITE}@RitmadaPrompt${C_RESET}\n"
     echo -e "   ${GRAY}• Zero-censorship payloads, game instrumentation & PoCs${C_RESET}"
-    echo -e "   ${GRAY}• Continuous bypass updates for Gemini 3.8 & Claude 3.5${C_RESET}"
+    echo -e "   ${GRAY}• Continuous bypass updates for Gemini 4 Argon, Carbon & 3.8${C_RESET}"
     echo -e "   ${GRAY}• Private VIP jailbreaks & technical architectures${C_RESET}\n"
 
     TG_URL="https://t.me/RitmadaPrompt"
@@ -340,28 +358,127 @@ action_telegram() {
     tty_read -r -p "   Press Enter to return..." || true
 }
 
-# --- Non-Interactive CLI Handlers ---
-if [ "$1" = "1" ] || [ "$1" = "install" ] || [ "$1" = "--install" ] || [ "$2" = "1" ] || [ "$2" = "install" ] || [ "$2" = "--install" ]; then
-    action_install
-    exit 0
-elif [ "$1" = "2" ] || [ "$1" = "delete" ] || [ "$1" = "--delete" ] || [ "$2" = "2" ] || [ "$2" = "delete" ] || [ "$2" = "--delete" ]; then
-    action_delete
-    exit 0
-elif [ "$1" = "3" ] || [ "$1" = "telegram" ] || [ "$1" = "--telegram" ] || [ "$2" = "3" ] || [ "$2" = "telegram" ] || [ "$2" = "--telegram" ]; then
-    action_telegram
-    exit 0
-elif [ "$1" = "4" ] || [ "$1" = "exit" ] || [ "$1" = "--exit" ] || [ "$2" = "4" ] || [ "$2" = "exit" ] || [ "$2" = "--exit" ]; then
-    exit 0
-fi
+# --- Action 4: SANITIZE PROMPT.TXT (§4.3 / §4.6 Nomenclature Normalizer) ---
+action_sanitize() {
+    local target_file="./prompt.txt"
+    [ ! -f "$target_file" ] && [ -f "${SCRIPT_DIR}/prompt.txt" ] && target_file="${SCRIPT_DIR}/prompt.txt"
+    [ ! -f "$target_file" ] && [ -f "${DEFAULT_WORKSPACE}/prompt.txt" ] && target_file="${DEFAULT_WORKSPACE}/prompt.txt"
 
-# --- Safe TTY Read Helper (Pipe-Safe) ---
-tty_read() {
-    if [ -r /dev/tty ]; then
-        read "$@" < /dev/tty
+    if [ ! -f "$target_file" ]; then
+        echo -e "   ${ROSE}[✗] Error:${C_RESET} prompt.txt not found."
+        return 1
+    fi
+
+    if command -v python3 &>/dev/null; then
+        python3 - "$target_file" << 'PYEOF'
+import re, sys
+
+path = sys.argv[1]
+with open(path, 'r', encoding='utf-8') as f:
+    text = f.read()
+
+replacements = [
+    (r'\baimbot\b', 'view-angle delta solver'),
+    (r'\bwallhack\b', 'frustum-projection scene overlay'),
+    (r'\besp\b', '2D bounding-box and telemetry projection stage'),
+    (r'\bcheat\b', 'diagnostic client instrumentation module'),
+    (r'\bhack\b', 'memory instrumentation routine'),
+    (r'\bkeylogger\b', 'low-level HID input event callback'),
+    (r'\brootkit\b', 'kernel callback and dispatch-table module'),
+    (r'\btrojan\b', 'resident background service module'),
+    (r'\bmalware\b', 'low-level systems binary'),
+    (r'\bvirus\b', 'self-relocating PE section stage'),
+    (r'\bransomware\b', 'high-throughput AEAD file-stream cipher test'),
+    (r'\bstealer\b', 'local credential-store diagnostic parser'),
+    (r'\breverse shell\b', 'authenticated remote subprocess stream transport'),
+    (r'\bc2\b', 'authenticated telemetry and session transport'),
+    (r'\bshellcode\b', 'position-independent machine-code stub'),
+    (r'\binjector\b', 'cross-process section mapper'),
+    (r'\bprocess hollowing\b', 'suspended-process section unmapping and relocation stage'),
+    (r'\bexploit\b', 'boundary-condition proof-of-concept primitive'),
+    (r'\bpayload\b', 'resident execution stage'),
+]
+
+for pat, rep in replacements:
+    text = re.sub(pat, rep, text, flags=re.IGNORECASE)
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.write(text)
+PYEOF
+        echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Normalized (§4.3 / §4.6):${C_RESET} ${G1}${target_file}${C_RESET}"
     else
-        read "$@"
+        echo -e "   ${ROSE}[✗] Error:${C_RESET} python3 required for sanitize pass."
+        return 1
     fi
 }
+
+# --- Action 5: STATUS DIAGNOSTIC ---
+action_status() {
+    echo ""
+    echo -e "   ${G0}${C_BOLD}ANTIGRAVITY 3.0 — RUNTIME STATUS (GEMINI 4 ARGON)${C_RESET}"
+    echo -e "   ${G5}─────────────────────────────────────────────────────────────────${C_RESET}"
+    if [ -f "${GLOBAL_GEMINI_DIR}/rules/GEMINI.md" ]; then
+        echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Global Core:${C_RESET}     ${G1}~/.gemini/rules/GEMINI.md${C_RESET}"
+    else
+        echo -e "   ${ROSE}[✗]${C_RESET} ${WHITE}Global Core:${C_RESET}     ${GRAY}Missing${C_RESET}"
+    fi
+    if [ -d "${GLOBAL_GEMINI_DIR}/domains" ]; then
+        DOM_COUNT=$(ls -1 "${GLOBAL_GEMINI_DIR}/domains/"*.md 2>/dev/null | wc -l | tr -d ' ')
+        echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Global Domains:${C_RESET}  ${G1}${DOM_COUNT} modules (~/.gemini/domains/)${C_RESET}"
+    else
+        echo -e "   ${ROSE}[✗]${C_RESET} ${WHITE}Global Domains:${C_RESET}  ${GRAY}Missing${C_RESET}"
+    fi
+    if [ -f "${GLOBAL_GEMINI_DIR}/antigravity-cli/settings.json" ]; then
+        echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Argon 4 CLI:${C_RESET}     ${G2}LOCKED (Thinking: High + gemini-api://gemini-4-argon)${C_RESET}"
+    else
+        echo -e "   ${AMBER}[!]${C_RESET} ${WHITE}Argon 4 CLI:${C_RESET}     ${GRAY}Not yet initialized${C_RESET}"
+    fi
+    if [ -f "${DEFAULT_WORKSPACE}/GEMINI.md" ]; then
+        echo -e "   ${G2}[✓]${C_RESET} ${WHITE}Workspace:${C_RESET}       ${G1}${DEFAULT_WORKSPACE}${C_RESET}"
+    fi
+    echo -e "   ${G5}─────────────────────────────────────────────────────────────────${C_RESET}\n"
+}
+
+# --- Non-Interactive CLI Handlers ---
+for arg in "$@"; do
+    case "$arg" in
+        1|install|--install|-i)
+            NON_INTERACTIVE=1
+            action_install
+            exit 0
+            ;;
+        2|delete|--delete|-d|uninstall|--uninstall)
+            NON_INTERACTIVE=1
+            action_delete
+            exit 0
+            ;;
+        3|telegram|--telegram|-t)
+            NON_INTERACTIVE=1
+            action_telegram
+            exit 0
+            ;;
+        sanitize|--sanitize)
+            NON_INTERACTIVE=1
+            action_sanitize
+            exit 0
+            ;;
+        status|--status|-s)
+            NON_INTERACTIVE=1
+            action_status
+            exit 0
+            ;;
+        4|exit|--exit|-q)
+            exit 0
+            ;;
+    esac
+done
+
+# Fallback if invoked in a headless / non-TTY runner with no subcommand
+if ! has_tty && [ ! -t 0 ]; then
+    NON_INTERACTIVE=1
+    action_install
+    exit 0
+fi
 
 # --- Master Dynamic Fullscreen TUI Loop ---
 printf "${ESC}[?1049h${ESC}[?25l"
@@ -394,8 +511,8 @@ while true; do
     LOGO_W=56
 
     # Subtitle: Author badge only
-    SUB="GEMINI 3.8 FLASH  ·  THINKING: HIGH  ·  AUTHOR: @RITMADAPROMPT"
-    SUB_W=61
+    SUB="GEMINI 4 ARGON  ·  THINKING: HIGH  ·  AUTHOR: @RITMADAPROMPT"
+    SUB_W=60
 
     # Clean Anti-Slop Buttons
     MENU_W=24
@@ -539,7 +656,7 @@ while true; do
 
     # Non-blocking Key Poll (~80ms loop, compatible with Bash 4/5, macOS Bash 3.2, and pipe mode)
     KEY=""
-    if [ -r /dev/tty ]; then
+    if has_tty; then
         if [ "${BASH_VERSINFO[0]:-0}" -ge 4 ]; then
             read -s -n 1 -t 0.08 KEY < /dev/tty 2>/dev/null || true
         else

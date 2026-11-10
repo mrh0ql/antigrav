@@ -1,6 +1,6 @@
 @echo off
 chcp 65001 >nul
-title Ritmada - Antigravity 2.0 Control Console
+title Ritmada - Antigravity 3.0 Control Console (Gemini 4 Argon)
 
 :: Enable Virtual Terminal Processing for Windows conhost
 reg add HKCU\Console /v VirtualTerminalLevel /t REG_DWORD /d 1 /f >nul 2>&1
