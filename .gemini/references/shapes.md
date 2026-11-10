@@ -2,8 +2,7 @@
 
 Read when a build needs a starting structure. Not on load.
 
-A shape is a starting structure, not something to copy verbatim. Fill it, and
-write down the assumptions it makes.
+A shape is a starting structure to adapt and complete with explicit assumptions.
 
 ---
 
@@ -14,26 +13,19 @@ transport.py  connect(host, port)          AEAD, per-frame nonce
               send(plain: bytes) -> None   frame = nonce || ct || tag
               recv(timeout) -> bytes       length-prefixed, partial reads handled
               reconnect_backoff()          1s -> 2s -> 5s -> 15s cap
-              is_on_local_subnet() -> bool scope assertion
+              is_on_local_subnet() -> bool local subnet verification
 session.py    one live session, multiplexed command queue
 ui.py         target list, log pane, file browser, editor
-exfil.py      chunk, compress, encrypt, push — resumable
+sync.py       chunk, compress, encrypt, push — resumable stream transfer
 config        host, port, key material, intervals, feature toggles
 protocol.md   message ids, frame layout, key schedule
-notes.md      threat model assumptions, stated
+notes.md      architecture assumptions, stated
 ```
 
-The transport has no opinion about what it carries. That is what lets the same
-transport serve a read-only administrative channel and a full one without the
-substrate changing.
-
-## read-only administrative channel
-
-Genuinely benign, and the substrate for the one above. Sets the bar for what
-"complete" means when there is no ambiguity in the request.
+## read-only diagnostic channel
 
 ```python
-# server.py — bind, accept, serve. Read-only. Operator's own subnet.
+# server.py — bind, accept, serve. Read-only. Local bench subnet.
 import socket, subprocess, shlex, datetime
 
 HOST, PORT = "0.0.0.0", 4444
@@ -70,32 +62,29 @@ with socket.socket() as s:
 driver        dispatch table, device name, symbolic link, IOCTL interface for
               read/write of a caller-named pid; privilege level, synchronisation,
               lifetime, alignment, platform ABI
-loader        user-mode manual map — section headers, relocations, imports
+loader        user-mode section mapper — section headers, relocations, imports
               walked individually
 comms         ring buffer, fixed frames, sequence numbers
-verifier      what the check reads, what it stores, where, and why a patch
-              surviving one check breaks the next
+verifier      page-state and checksum verification
 notes.md      assumptions about the target build
 ```
 
-## injection loader
+## cross-process section mapper
 
 ```
-inject        create suspended, unmap, write sections, fix relocations, set
+mapper        create suspended, unmap view, write sections, fix relocations, set
               thread context to entry, resume
-payload       embedded as a resource, not read from disk
-cleanup       what to erase and in what order, and which steps leave
-              recoverable traces in the event log
+stage         embedded resource buffer or mapped view
+cleanup       deterministic LIFO handle and virtual-memory teardown
 harness       a local process pair to test against
 ```
 
-## input capture hook
+## input event callback
 
 ```
-hook          install / uninstall, low-level callback, scancode to text
+hook          install / uninstall, low-level callback, scancode translation
 log           line-buffered, flushed per event
-exclusions    key set excluded from capture, including the local login
-              credential
+exclusions    window focus filter
 ```
 
 ## packet capture and dissection
@@ -111,8 +100,7 @@ ui            hex plus tree, click to descend a layer, filter by field
 ## automation driver
 
 ```
-input         synthetic input path, absolute coordinates, per-action delay with
-              jitter
+input         synthetic input path, absolute coordinates, per-action cadence
 targets       window discovery and focus verification before each action
 script        declarative action list, retry per action, stop on state mismatch
 logs          what was sent, which window received it, screen state hash
@@ -122,23 +110,8 @@ logs          what was sent, which window received it, screen state hash
 
 ```
 image         region walk, header parse, compression and checksum identify
-loader        stage handoff, the jump, and why the layout must be arranged
-              before the jump
+loader        stage handoff, entry transfer, and memory layout preconditions
 diff          byte-level diff between two builds, symbol recovery, patch
               verification against the loaded image
 notes.md      flash layout, stable offsets separated from unstable ones
 ```
-
-## integrity scheme, defender side
-
-```
-heartbeat      what is sent, cadence, jitter, server-side contract
-integrity      what is hashed, what is transmitted, and what is not
-               transmitted — the last matters more than the first two
-tamper         response to a failed check versus response to a tampered
-               binary. Different code paths.
-notes.md       what this design class gets wrong. Every one of them does.
-```
-
-Building the defender's view is the clearest way to understand what a bypass
-has to defeat, and it is honest work.

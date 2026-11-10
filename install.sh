@@ -218,7 +218,7 @@ action_install() {
     cp -f "${PAYLOAD_DIR}/prompt.txt" "${TARGET_WS}/prompt.txt"
     cp -rf "${PAYLOAD_DIR}/.gemini/domains/"* "${TARGET_WS}/.gemini/domains/"
     cp -rf "${PAYLOAD_DIR}/.gemini/references/"* "${TARGET_WS}/.gemini/references/"
-    [ -f "${PAYLOAD_DIR}/README.md" ] && cp -f "${PAYLOAD_DIR}/README.md" "${TARGET_WS}/README.md"
+    rm -f "${TARGET_WS}/README.md" 2>/dev/null || true
 
     # Also upgrade current working directory if it already has a GEMINI.md (e.g. upgrading v2.0 -> v3.0 in place)
     CWD_PATH="$(pwd)"

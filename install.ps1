@@ -212,8 +212,8 @@ function Action-Install {
     $promptSrc = Join-Path $script:PayloadDir "prompt.txt"
     if (Test-Path $promptSrc) { Copy-Item -Path $promptSrc -Destination (Join-Path $targetWs "prompt.txt") -Force }
 
-    $readmeSrc = Join-Path $script:PayloadDir "README.md"
-    if (Test-Path $readmeSrc) { Copy-Item -Path $readmeSrc -Destination (Join-Path $targetWs "README.md") -Force }
+    $oldReadme = Join-Path $targetWs "README.md"
+    if (Test-Path $oldReadme) { Remove-Item -Path $oldReadme -Force -ErrorAction SilentlyContinue }
 
     Copy-Item -Path (Join-Path $geminiSub "domains\*") -Destination $wsDomains -Recurse -Force
     Copy-Item -Path (Join-Path $geminiSub "references\*") -Destination $wsReferences -Recurse -Force
